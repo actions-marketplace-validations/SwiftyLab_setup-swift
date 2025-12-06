@@ -1,79 +1,84 @@
 import * as path from 'path'
 import {promises as fs} from 'fs'
+import * as core from '@actions/core'
+import {glob} from 'glob'
+import {escapeRegExp} from 'lodash'
 import {VersionedPlatform} from './versioned'
 import {ToolchainVersion} from '../version'
-import {LinuxToolchainSnapshot} from '../snapshot'
+import {LinuxToolchainSnapshot, ToolchainSnapshot} from '../snapshot'
 import {LinuxToolchainInstaller} from '../installer'
 import {MODULE_DIR} from '../const'
 
 export class LinuxPlatform extends VersionedPlatform<LinuxToolchainInstaller> {
+  constructor(
+    readonly name: string,
+    readonly version: number,
+    readonly arch: string
+  ) {
+    switch (arch) {
+      case 'x64':
+        arch = 'x86_64'
+        break
+      case 'arm64':
+        arch = 'aarch64'
+        break
+      default:
+        break
+    }
+    super(name, version, arch)
+  }
+
+  protected get downloadExtension() {
+    return 'tar.gz'
+  }
+
   private async html() {
     const doc = path.join(MODULE_DIR, 'swiftorg', 'download', 'index.md')
     const content = await fs.readFile(doc, 'utf8')
     return content
   }
 
-  async tools(version: ToolchainVersion) {
-    let html: string
-    const tools = await super.tools(version)
-    return await Promise.all(
-      tools.map(async tool => {
-        if (tool.docker) {
-          return tool
-        }
-        let headingPattern: RegExp
-        const match = /swift-(.*)-/.exec(tool.branch)
-        if (match && match.length > 1) {
-          const ver = match[1]
-          headingPattern = new RegExp(`Swift ${ver}`, 'g')
-          if (
-            tools.some(newTool => newTool.branch.match(`swift-${ver}-release`))
-          ) {
-            return tool
-          }
-          if (
-            tools.some(
-              newTool =>
-                newTool.branch === tool.branch && newTool.date > tool.date
-            )
-          ) {
-            return tool
-          }
-        } else {
-          headingPattern = /(Trunk Development|\(main\))/g
-        }
+  snapshotFor(snapshot: ToolchainSnapshot) {
+    return {...snapshot, download_signature: `${snapshot.download}.sig`}
+  }
 
-        if (!html) {
-          html = await this.html()
-        }
-        if (!headingPattern.exec(html)) {
-          return tool
-        }
-        const platformPattern = new RegExp(
-          `{(?!.*{).*platform_dir="${tool.platform}".*}`,
+  async tools(version: ToolchainVersion) {
+    const tools = await super.tools(version)
+    try {
+      const vGlob = `${this.version}`.split('').join('*')
+      const index = ['linux', this.name, vGlob, 'index.md']
+      const doc = path.join('swiftorg', 'install', ...index)
+      const file = (await glob(doc, {absolute: true, cwd: MODULE_DIR}))[0]
+      if (!file) {
+        return tools
+      }
+
+      const content = await fs.readFile(file, 'utf8')
+      const branchPattern = /branch_dir(.*)="(.+)"/g
+      const branchResults = content.matchAll(branchPattern)
+      const startPattern = /<\/details>/g // only search string after this tag
+      startPattern.exec(content)
+      for (const result of branchResults) {
+        const tIndex = tools.findIndex(tool => tool.branch === result[2])
+        const dTagPattern = new RegExp(
+          `docker_tag${escapeRegExp(result[1])}="(.+)"`,
           'g'
         )
-        platformPattern.lastIndex = headingPattern.lastIndex
-        const toolMetaMatch = platformPattern.exec(html)
-        if (!toolMetaMatch?.length) {
-          return tool
+        dTagPattern.lastIndex = startPattern.lastIndex
+        const dMatch = dTagPattern.exec(content)
+        if (tIndex >= 0 && dMatch?.length) {
+          tools[tIndex] = {...tools[tIndex], docker: dMatch[1]}
         }
-
-        const dockerMatch = /docker_tag=("|')((?<!\\)\\\1|.)*?\1/.exec(
-          toolMetaMatch[0]
-        )
-        if (!dockerMatch || dockerMatch.length < 3) {
-          return tool
-        }
-
-        return {...tool, docker: dockerMatch[2]}
-      })
-    )
+      }
+    } catch (error) {
+      core.warning(`Skippping development tools docker metadata for "${error}"`)
+    }
+    return tools
   }
 
   async install(data: LinuxToolchainSnapshot) {
     const installer = new LinuxToolchainInstaller(data)
-    await installer.install(this.name, this.arch)
+    await installer.install(this.arch)
     return installer
   }
 }

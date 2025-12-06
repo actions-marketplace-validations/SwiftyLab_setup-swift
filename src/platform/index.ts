@@ -7,10 +7,10 @@ import {XcodePlatform} from './xcode'
 import {LinuxPlatform} from './linux'
 import {WindowsPlatform} from './windows'
 import {ToolchainSnapshot} from '../snapshot'
-import {ToolchainInstaller} from '../installer'
+import {ToolchainInstaller, SdkToolchainInstaller} from '../installer'
 
 declare module './base' {
-  // eslint-disable-next-line no-shadow
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   export namespace Platform {
     export function currentPlatform(): Promise<
       Platform<ToolchainInstaller<ToolchainSnapshot>>
@@ -21,26 +21,15 @@ declare module './base' {
     export function toolchain(
       version: ToolchainVersion
     ): Promise<ToolchainSnapshot | undefined>
-    export function install(
-      version: ToolchainVersion
-    ): Promise<ToolchainInstaller<ToolchainSnapshot>>
+    export function install(version: ToolchainVersion): Promise<{
+      installer: ToolchainInstaller<ToolchainSnapshot>
+      sdkInstallers: SdkToolchainInstaller[]
+    }>
   }
 }
 
 Platform.currentPlatform = async () => {
-  let arch: string
-  switch (os.arch()) {
-    case 'x64':
-      arch = 'x86_64'
-      break
-    case 'arm64':
-      arch = 'aarch64'
-      break
-    default:
-      arch = os.arch()
-      break
-  }
-
+  const arch = os.arch()
   const _os: getos.Os = await new Promise((resolve, reject) => {
     getos((e, o) => {
       if (e) {
@@ -94,11 +83,16 @@ Platform.install = async (version: ToolchainVersion) => {
   }
   const toolchain = toolchains[0]
   core.startGroup(`Installing Swift toolchain snapshot ${toolchain.dir}`)
-  const installer = await platform.install(toolchains[0])
+  const installer = await platform.install(toolchain)
   core.endGroup()
-  core.startGroup(`Getting installed Swift version ${toolchain.dir}`)
-  core.endGroup()
-  return installer
+
+  const sdkInstallers: SdkToolchainInstaller[] = []
+  for (const sdkSnapshot of await version.sdkSnapshots(toolchain)) {
+    const sdkInstaller = new SdkToolchainInstaller(sdkSnapshot)
+    await sdkInstaller.install(toolchain.platform)
+    sdkInstallers.push(sdkInstaller)
+  }
+  return {installer, sdkInstallers}
 }
 
 export * from './base'

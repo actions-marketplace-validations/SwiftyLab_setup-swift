@@ -1,0 +1,15 @@
+{
+    "image": "mcr.microsoft.com/devcontainers/universal:2",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "eamodio.gitlens",
+                "ms-vscode.vscode-typescript-next",
+                "Orta.vscode-jest",
+                "dbaeumer.vscode-eslint",
+                "github.vscode-github-actions"
+            ]
+        }
+    },
+    "postCreateCommand": "npm install --legacy-peer-deps"
+}

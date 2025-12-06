@@ -1,14 +1,14 @@
 import {SemVer} from 'semver'
+import {escapeRegExp} from 'lodash'
 import {ToolchainVersion} from './base'
 
 export class SemanticToolchainVersion extends ToolchainVersion {
-  readonly requested: string
-  readonly semver: SemVer
-
-  constructor(requested: string, semver: SemVer, dev: boolean) {
+  constructor(
+    readonly requested: string,
+    readonly semver: SemVer,
+    dev: boolean
+  ) {
     super(dev)
-    this.requested = requested
-    this.semver = semver
   }
 
   private get versionComponent() {
@@ -34,6 +34,10 @@ export class SemanticToolchainVersion extends ToolchainVersion {
   }
 
   protected get dirRegex() {
-    return new RegExp(`swift-${this.versionComponent}`)
+    return new RegExp(`swift-${escapeRegExp(this.versionComponent)}`)
+  }
+
+  toString() {
+    return `version: ${this.semver.raw}, dev: ${this.dev}`
   }
 }

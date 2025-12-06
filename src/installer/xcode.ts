@@ -4,7 +4,7 @@ import * as core from '@actions/core'
 import {exec} from '@actions/exec'
 import * as toolCache from '@actions/tool-cache'
 import * as plist from 'plist'
-import {ToolchainInstaller, NoInstallationNeededError} from './base'
+import {ToolchainInstaller} from './base'
 import {XcodeToolchainSnapshot} from '../snapshot'
 
 export class XcodeToolchainInstaller extends ToolchainInstaller<XcodeToolchainSnapshot> {
@@ -28,7 +28,7 @@ export class XcodeToolchainInstaller extends ToolchainInstaller<XcodeToolchainSn
     const xcodeApp = `/Applications/Xcode_${xcode}.app`
     try {
       await fs.access(xcodeApp)
-    } catch (error) {
+    } catch {
       core.debug(`Xcode ${xcode} is not installed, downloading toolchain`)
       return true
     }
@@ -38,21 +38,29 @@ export class XcodeToolchainInstaller extends ToolchainInstaller<XcodeToolchainSn
     const command = this.swiftVersionCommand('')
     const version = await this.installedSwiftVersion(command)
     core.debug(`Found toolchain "${version}" bundled with Xcode ${xcode}`)
-    return this.data.dir === `swift-${version}-RELEASE`
+    if (core.getBooleanInput('prefer-oss-toolchain')) {
+      core.debug(`Giving preference to open source toolchain`)
+      return true
+    }
+    return this.data.dir !== `swift-${version}-RELEASE`
   }
 
-  protected async download() {
+  async install(arch: string) {
     if (!(await this.isInstallationNeeded())) {
-      throw new NoInstallationNeededError('Bundled with xcode')
+      return
     }
-    const toolchain = await super.download()
+    await super.install(arch)
+  }
+
+  protected async download(arch: string) {
+    const toolchain = await super.download(arch)
     core.debug(`Checking package signature for "${toolchain}"`)
     await exec('pkgutil', ['--check-signature', toolchain])
     return toolchain
   }
 
-  protected async unpack(pkg: string) {
-    core.debug(`Extracting toolchain from "${pkg}"`)
+  protected async unpack(pkg: string, arch: string) {
+    core.debug(`Extracting toolchain from "${pkg}" for architecture ${arch}`)
     const unpackedPath = await toolCache.extractXar(pkg)
     core.debug(`Toolchain unpacked to "${unpackedPath}"`)
     const pkgFile = this.data.download
@@ -63,7 +71,7 @@ export class XcodeToolchainInstaller extends ToolchainInstaller<XcodeToolchainSn
     return extractedPath
   }
 
-  protected async add(toolchain: string) {
+  protected async add(toolchain: string, arch: string) {
     const xctoolchains = path.join('/Library', 'Developer', 'Toolchains')
     try {
       await fs.access(xctoolchains)
@@ -75,10 +83,11 @@ export class XcodeToolchainInstaller extends ToolchainInstaller<XcodeToolchainSn
     const xctoolchain = path.join(xctoolchains, `${this.data.dir}.xctoolchain`)
     try {
       await fs.access(xctoolchain)
-    } catch (error) {
-      core.debug(`Removing xctoolchain "${xctoolchain}" for "${error}"`)
+      core.debug(`Removing existing xctoolchain "${xctoolchain}"`)
       await exec('sudo', ['rm', '-rf', xctoolchain])
       // await fs.unlink(xctoolchain)
+    } catch (error) {
+      core.debug(`No existing xctoolchain "${xctoolchain}", got "${error}"`)
     }
     core.debug(`Linking "${xctoolchain}" to "${toolchain}"`)
     await exec('sudo', ['ln', '-s', toolchain, xctoolchain])
@@ -86,7 +95,7 @@ export class XcodeToolchainInstaller extends ToolchainInstaller<XcodeToolchainSn
     core.debug(`Adding toolchain "${toolchain}" to path`)
     const swiftPath = path.join(toolchain, 'usr', 'bin')
     core.addPath(swiftPath)
-    core.debug(`Swift installed at "${swiftPath}"`)
+    core.debug(`Swift installed for architecture ${arch} at "${swiftPath}"`)
     const infoPlist = await fs.readFile(
       path.join(toolchain, 'Info.plist'),
       'utf-8'
@@ -96,9 +105,6 @@ export class XcodeToolchainInstaller extends ToolchainInstaller<XcodeToolchainSn
       `Setting Swift toolchain identifier to "${info.CFBundleIdentifier}"`
     )
     core.exportVariable('TOOLCHAINS', info.CFBundleIdentifier)
-    core.addPath(
-      '%ProgramFiles(x86)%\\Microsoft Visual Studio\\Shared\\Python37_64'
-    )
   }
 }
 

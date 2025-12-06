@@ -2,8 +2,13 @@ import * as path from 'path'
 import {promises as fs} from 'fs'
 import * as core from '@actions/core'
 import * as yaml from 'js-yaml'
-import {ToolchainVersion} from '../version'
-import {ToolchainSnapshot} from '../snapshot'
+import semver from 'semver'
+import {
+  ToolchainVersion,
+  SWIFT_RELEASE_FILE,
+  SWIFT_BRANCH_REGEX
+} from '../version'
+import {ToolchainSnapshot, SwiftRelease} from '../snapshot'
 import {ToolchainInstaller, SnapshotForInstaller} from '../installer'
 
 export abstract class Platform<
@@ -18,9 +23,56 @@ export abstract class Platform<
     return await version.toolFiles(this.fileGlob)
   }
 
+  protected async releases() {
+    const data = await fs.readFile(SWIFT_RELEASE_FILE, 'utf-8')
+    return yaml.load(data) as SwiftRelease[]
+  }
+
+  abstract snapshotFor(
+    snapshot: ToolchainSnapshot
+  ): SnapshotForInstaller<Installer>
+
+  private sortSnapshots(snapshots: SnapshotForInstaller<Installer>[]) {
+    return snapshots.sort((item1, item2) => {
+      const t1 = item1 as ToolchainSnapshot
+      const t2 = item2 as ToolchainSnapshot
+      const ver1Match = SWIFT_BRANCH_REGEX.exec(t1.dir)
+      const ver2Match = SWIFT_BRANCH_REGEX.exec(t2.dir)
+      if (
+        ver1Match &&
+        ver2Match &&
+        ver1Match.length > 1 &&
+        ver2Match.length > 1
+      ) {
+        const ver1 = semver.coerce(ver1Match[1])
+        const ver2 = semver.coerce(ver2Match[1])
+        if (ver1 && ver2) {
+          const comparison = semver.compare(ver2, ver1)
+          if (comparison !== 0) {
+            return comparison
+          }
+        }
+      }
+      return t2.date.getTime() - t1.date.getTime()
+    })
+  }
+
+  protected abstract releasedTools(
+    version: ToolchainVersion
+  ): Promise<SnapshotForInstaller<Installer>[]>
+
   async tools(
     version: ToolchainVersion
   ): Promise<SnapshotForInstaller<Installer>[]> {
+    const verSnapshot = version.toolchainSnapshot(this.file)
+    if (verSnapshot) {
+      return [this.snapshotFor(verSnapshot)]
+    }
+
+    const snapshots = await this.releasedTools(version)
+    if (snapshots.length && !version.dev) {
+      return this.sortSnapshots(snapshots)
+    }
     const files = await this.toolFiles(version)
     core.debug(`Using files "${files}" to get toolchains snapshot data`)
 
@@ -31,28 +83,30 @@ export abstract class Platform<
         const branch = path.basename(path.dirname(file)).replaceAll('_', '.')
         const data = await fs.readFile(file, 'utf-8')
         return {
-          data: yaml.load(data) as [object],
+          data: yaml.load(data) as object[],
           platform,
           branch
         }
       })
     )
 
-    return snapshotsCollection
-      .flatMap(snapshots => {
-        return snapshots.data.map(data => {
+    const devSnapshots = snapshotsCollection
+      .flatMap(collection => {
+        return collection.data.map(data => {
           return {
             ...data,
-            platform: snapshots.platform,
-            branch: snapshots.branch
+            platform: collection.platform,
+            branch: collection.branch,
+            preventCaching: false
           } as SnapshotForInstaller<Installer>
         })
       })
-      .sort(
-        (item1, item2) =>
-          (item2 as ToolchainSnapshot).date.getTime() -
-          (item1 as ToolchainSnapshot).date.getTime()
-      )
+      .filter(item => {
+        const snapshot = item as ToolchainSnapshot
+        return version.satisfiedBy(snapshot.dir)
+      })
+    snapshots.push(...devSnapshots)
+    return this.sortSnapshots(snapshots)
   }
 
   abstract install(

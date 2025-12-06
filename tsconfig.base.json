@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
+        "strict": true,
+        "noImplicitAny": true,
+        "esModuleInterop": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "noImplicitReturns": true,
+        "strictBuiltinIteratorReturn": false,
+        "skipLibCheck": true,
+        "lib": [
+            "ES2021.String",
+        ]
+    },
+    "exclude": [
+        "node_modules"
+    ]
+}
