@@ -59,7 +59,7 @@ jobs:
         cache: npm
 
     - name: Cache dependencies
-      uses: actions/cache@v5.0.1
+      uses: actions/cache@v5.0.3
       with:
         key: node-${{ github.ref }}
         path: node_modules
@@ -127,7 +127,7 @@ jobs:
         cache: npm
 
     - name: Cache dependencies
-      uses: actions/cache@v5.0.1
+      uses: actions/cache@v5.0.3
       with:
         key: node-${{ github.ref }}
         path: node_modules
@@ -214,7 +214,7 @@ jobs:
         cache: npm
 
     - name: Cache dependencies
-      uses: actions/cache@v5.0.1
+      uses: actions/cache@v5.0.3
       with:
         key: node-${{ github.ref }}
         path: node_modules
@@ -302,7 +302,7 @@ jobs:
 
     - name: Upload cached installation as artifact
       if: always() && steps.get-tool.outputs.result != ''
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ fromJson(steps.get-tool.outputs.result).key }}-${{ matrix.os }}-tool
         path: ${{ fromJson(steps.get-tool.outputs.result).tool }}
@@ -329,7 +329,7 @@ jobs:
         cache: npm
 
     - name: Cache dependencies
-      uses: actions/cache@v5.0.1
+      uses: actions/cache@v5.0.3
       with:
         key: node-${{ github.ref }}
         path: node_modules
@@ -474,7 +474,7 @@ jobs:
           cache: npm
 
       - name: Cache dependencies
-        uses: actions/cache@v5.0.1
+        uses: actions/cache@v5.0.3
         with:
           key: node-${{ github.ref }}
           path: node_modules
@@ -542,7 +542,7 @@ jobs:
         cache: npm
 
     - name: Cache dependencies
-      uses: actions/cache@v5.0.1
+      uses: actions/cache@v5.0.3
       with:
         key: node-${{ github.ref }}
         path: node_modules

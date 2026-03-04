@@ -49,15 +49,15 @@
     "semver": "^7.7.3"
   },
   "devDependencies": {
-    "@stylistic/eslint-plugin": "^5.5.0",
+    "@stylistic/eslint-plugin": "^5.7.1",
     "@types/getos": "^3.0.4",
     "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",
-    "@types/lodash": "^4.17.20",
+    "@types/lodash": "^4.17.23",
     "@types/plist": "^3.0.5",
     "@types/semver": "^7.7.1",
     "@typescript-eslint/eslint-plugin": "^8.53.0",
-    "@typescript-eslint/parser": "^8.44.0",
+    "@typescript-eslint/parser": "^8.54.0",
     "@vercel/ncc": "^0.38.4",
     "conventional-changelog-conventionalcommits": "^7.0.0",
     "depcheck": "^1.4.7",
@@ -66,7 +66,7 @@
     "jest": "^30.2.0",
     "nock": "^14.0.10",
     "prettier": "^3.8.0",
-    "ts-jest": "^29.4.5",
+    "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
