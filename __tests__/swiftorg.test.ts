@@ -1,12 +1,20 @@
 import * as path from 'path'
 import * as exec from '@actions/exec'
 import nock from 'nock'
-import {Swiftorg, SWIFTORG} from '../src/swiftorg'
-import {MODULE_DIR, SWIFTORG_ORIGIN, SWIFTORG_METADATA} from '../src/const'
+import {Swiftorg} from '../src/swiftorg'
+import {
+  MODULE_DIR,
+  SWIFTORG,
+  SWIFTORG_ORIGIN,
+  SWIFTORG_METADATA
+} from '../src/const'
+import {describe, expect, it, vi, beforeEach, afterEach} from 'vitest'
+
+vi.mock('@actions/exec', {spy: true})
 
 describe('swiftorg sync validation', () => {
   const env = process.env
-  const execSpy = jest.spyOn(exec, 'exec')
+  const execSpy = vi.spyOn(exec, 'exec')
 
   beforeEach(() => {
     process.env = {...env}
@@ -20,10 +28,22 @@ describe('swiftorg sync validation', () => {
     execSpy.mockResolvedValue(0)
     const swiftorg = new Swiftorg(true)
     await swiftorg.update()
-    expect(execSpy).toHaveBeenCalledTimes(3)
+    expect(execSpy).toHaveBeenCalledTimes(5)
     expect(execSpy.mock.calls[1]).toStrictEqual([
       'git',
-      ['fetch', SWIFTORG_ORIGIN, 'HEAD', '--depth=1', '--no-tags'],
+      ['remote', 'add', 'origin', SWIFTORG_ORIGIN],
+      {cwd: path.join(MODULE_DIR, SWIFTORG)}
+    ])
+    expect(execSpy.mock.calls[3]).toStrictEqual([
+      'git',
+      [
+        'fetch',
+        'origin',
+        'HEAD',
+        '--depth=1',
+        '--no-tags',
+        '--filter=blob:none'
+      ],
       {cwd: path.join(MODULE_DIR, SWIFTORG)}
     ])
   })
@@ -32,10 +52,22 @@ describe('swiftorg sync validation', () => {
     execSpy.mockResolvedValue(0)
     const swiftorg = new Swiftorg('true')
     await swiftorg.update()
-    expect(execSpy).toHaveBeenCalledTimes(3)
+    expect(execSpy).toHaveBeenCalledTimes(5)
     expect(execSpy.mock.calls[1]).toStrictEqual([
       'git',
-      ['fetch', SWIFTORG_ORIGIN, 'HEAD', '--depth=1', '--no-tags'],
+      ['remote', 'add', 'origin', SWIFTORG_ORIGIN],
+      {cwd: path.join(MODULE_DIR, SWIFTORG)}
+    ])
+    expect(execSpy.mock.calls[3]).toStrictEqual([
+      'git',
+      [
+        'fetch',
+        'origin',
+        'HEAD',
+        '--depth=1',
+        '--no-tags',
+        '--filter=blob:none'
+      ],
       {cwd: path.join(MODULE_DIR, SWIFTORG)}
     ])
   })
@@ -45,10 +77,22 @@ describe('swiftorg sync validation', () => {
     const commit = '74caef941bc8ed6a01b9572ab6149e1d1f8a2d69'
     const swiftorg = new Swiftorg(commit)
     await swiftorg.update()
-    expect(execSpy).toHaveBeenCalledTimes(3)
+    expect(execSpy).toHaveBeenCalledTimes(5)
     expect(execSpy.mock.calls[1]).toStrictEqual([
       'git',
-      ['fetch', SWIFTORG_ORIGIN, commit, '--depth=1', '--no-tags'],
+      ['remote', 'add', 'origin', SWIFTORG_ORIGIN],
+      {cwd: path.join(MODULE_DIR, SWIFTORG)}
+    ])
+    expect(execSpy.mock.calls[3]).toStrictEqual([
+      'git',
+      [
+        'fetch',
+        'origin',
+        commit,
+        '--depth=1',
+        '--no-tags',
+        '--filter=blob:none'
+      ],
       {cwd: path.join(MODULE_DIR, SWIFTORG)}
     ])
   })
@@ -59,10 +103,22 @@ describe('swiftorg sync validation', () => {
     process.env.SETUPSWIFT_SWIFTORG_METADATA = `{"commit": "${commit}"}`
     const swiftorg = new Swiftorg(false)
     await swiftorg.update()
-    expect(execSpy).toHaveBeenCalledTimes(3)
+    expect(execSpy).toHaveBeenCalledTimes(5)
     expect(execSpy.mock.calls[1]).toStrictEqual([
       'git',
-      ['fetch', SWIFTORG_ORIGIN, commit, '--depth=1', '--no-tags'],
+      ['remote', 'add', 'origin', SWIFTORG_ORIGIN],
+      {cwd: path.join(MODULE_DIR, SWIFTORG)}
+    ])
+    expect(execSpy.mock.calls[3]).toStrictEqual([
+      'git',
+      [
+        'fetch',
+        'origin',
+        commit,
+        '--depth=1',
+        '--no-tags',
+        '--filter=blob:none'
+      ],
       {cwd: path.join(MODULE_DIR, SWIFTORG)}
     ])
   })
@@ -73,10 +129,22 @@ describe('swiftorg sync validation', () => {
     process.env.SETUPSWIFT_SWIFTORG_METADATA = `{"commit": "${commit}"}`
     const swiftorg = new Swiftorg('false')
     await swiftorg.update()
-    expect(execSpy).toHaveBeenCalledTimes(3)
+    expect(execSpy).toHaveBeenCalledTimes(5)
     expect(execSpy.mock.calls[1]).toStrictEqual([
       'git',
-      ['fetch', SWIFTORG_ORIGIN, commit, '--depth=1', '--no-tags'],
+      ['remote', 'add', 'origin', SWIFTORG_ORIGIN],
+      {cwd: path.join(MODULE_DIR, SWIFTORG)}
+    ])
+    expect(execSpy.mock.calls[3]).toStrictEqual([
+      'git',
+      [
+        'fetch',
+        'origin',
+        commit,
+        '--depth=1',
+        '--no-tags',
+        '--filter=blob:none'
+      ],
       {cwd: path.join(MODULE_DIR, SWIFTORG)}
     ])
   })
@@ -87,10 +155,22 @@ describe('swiftorg sync validation', () => {
     process.env.SETUPSWIFT_SWIFTORG_METADATA = `{"commit": "${commit}"}`
     const swiftorg = new Swiftorg('')
     await swiftorg.update()
-    expect(execSpy).toHaveBeenCalledTimes(3)
+    expect(execSpy).toHaveBeenCalledTimes(5)
     expect(execSpy.mock.calls[1]).toStrictEqual([
       'git',
-      ['fetch', SWIFTORG_ORIGIN, commit, '--depth=1', '--no-tags'],
+      ['remote', 'add', 'origin', SWIFTORG_ORIGIN],
+      {cwd: path.join(MODULE_DIR, SWIFTORG)}
+    ])
+    expect(execSpy.mock.calls[3]).toStrictEqual([
+      'git',
+      [
+        'fetch',
+        'origin',
+        commit,
+        '--depth=1',
+        '--no-tags',
+        '--filter=blob:none'
+      ],
       {cwd: path.join(MODULE_DIR, SWIFTORG)}
     ])
   })
@@ -104,10 +184,22 @@ describe('swiftorg sync validation', () => {
       .get(/.*/)
       .reply(200, {commit}, {'content-type': 'application/json'})
     await swiftorg.update()
-    expect(execSpy).toHaveBeenCalledTimes(3)
+    expect(execSpy).toHaveBeenCalledTimes(5)
     expect(execSpy.mock.calls[1]).toStrictEqual([
       'git',
-      ['fetch', SWIFTORG_ORIGIN, commit, '--depth=1', '--no-tags'],
+      ['remote', 'add', 'origin', SWIFTORG_ORIGIN],
+      {cwd: path.join(MODULE_DIR, SWIFTORG)}
+    ])
+    expect(execSpy.mock.calls[3]).toStrictEqual([
+      'git',
+      [
+        'fetch',
+        'origin',
+        commit,
+        '--depth=1',
+        '--no-tags',
+        '--filter=blob:none'
+      ],
       {cwd: path.join(MODULE_DIR, SWIFTORG)}
     ])
   })
@@ -120,7 +212,7 @@ describe('swiftorg sync validation', () => {
     nock(SWIFTORG_METADATA)
       .get(/.*/)
       .reply(statusCode, {}, {'content-type': 'application/json'})
-    await expect(swiftorg.update()).rejects.toMatchObject(
+    await expect(swiftorg.update()).rejects.toThrow(
       new Error(`Request Failed Status Code: '${statusCode}'`)
     )
     expect(execSpy).toHaveBeenCalledTimes(0)
@@ -134,7 +226,7 @@ describe('swiftorg sync validation', () => {
     nock(SWIFTORG_METADATA)
       .get(/.*/)
       .reply(200, {}, {'content-type': contentType})
-    await expect(swiftorg.update()).rejects.toMatchObject(
+    await expect(swiftorg.update()).rejects.toThrow(
       new Error(`Invalid content-type: '${contentType}'`)
     )
     expect(execSpy).toHaveBeenCalledTimes(0)

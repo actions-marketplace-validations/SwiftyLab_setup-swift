@@ -4,15 +4,18 @@ import {Swiftorg} from '../src/swiftorg'
 import {Platform} from '../src/platform'
 import {SdkSupportedVersion} from '../src/version'
 import {LinuxToolchainInstaller, SdkToolchainInstaller} from '../src/installer'
+import {SdkRequirement, StaticLinux} from '../src/version/sdk/requirement/base'
+import {SdkSnapshot} from '../src/snapshot'
+import {describe, expect, it, vi} from 'vitest'
+
+vi.mock('@actions/core', {spy: true})
 
 describe('setup-swift run validation', () => {
-  const swiftorgSpy = jest
-    .spyOn(Swiftorg.prototype, 'update')
-    .mockResolvedValue()
-  const toolchainSpy = jest.spyOn(Platform, 'toolchain')
-  const installSpy = jest.spyOn(Platform, 'install')
-  const outputSpy = jest.spyOn(core, 'setOutput')
-  const failedSpy = jest.spyOn(core, 'setFailed')
+  const swiftorgSpy = vi.spyOn(Swiftorg.prototype, 'update').mockResolvedValue()
+  const toolchainSpy = vi.spyOn(Platform, 'toolchain')
+  const installSpy = vi.spyOn(Platform, 'install')
+  const outputSpy = vi.spyOn(core, 'setOutput')
+  const failedSpy = vi.spyOn(core, 'setFailed')
   const toolchain = {
     name: 'Ubuntu 22.04',
     date: new Date('2023-03-30 10:28:49.000000000 -05:00'),
@@ -25,26 +28,29 @@ describe('setup-swift run validation', () => {
     preventCaching: false
   }
   const sdkToolchains = [
-    {
-      name: 'Static SDK',
-      date: new Date('2023-03-30 10:28:49.000000000 -05:00'),
-      download: 'swift-5.8-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz',
-      checksum:
-        'df0b40b9b582598e7e3d70c82ab503fd6fbfdff71fd17e7f1ab37115a0665b3b',
-      dir: 'swift-5.8-RELEASE',
-      platform: 'static-sdk',
-      branch: 'swift-5.8-release',
-      preventCaching: true
-    }
+    [
+      {
+        name: 'Static SDK',
+        date: new Date('2023-03-30 10:28:49.000000000 -05:00'),
+        download: 'swift-5.8-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz',
+        checksum:
+          'df0b40b9b582598e7e3d70c82ab503fd6fbfdff71fd17e7f1ab37115a0665b3b',
+        dir: 'swift-5.8-RELEASE',
+        platform: 'static-sdk',
+        branch: 'swift-5.8-release',
+        preventCaching: true
+      },
+      new StaticLinux()
+    ] as [SdkSnapshot, SdkRequirement]
   ]
 
   it('tests dry run', async () => {
     toolchainSpy.mockResolvedValue(toolchain)
-    jest.spyOn(core, 'getBooleanInput').mockReturnValue(true)
-    jest.spyOn(core, 'getInput').mockReturnValue('latest')
-    jest
-      .spyOn(SdkSupportedVersion.prototype, 'sdkSnapshots')
-      .mockResolvedValue(sdkToolchains)
+    vi.spyOn(core, 'getBooleanInput').mockReturnValue(true)
+    vi.spyOn(core, 'getInput').mockReturnValue('latest')
+    vi.spyOn(SdkSupportedVersion.prototype, 'sdkSnapshots').mockResolvedValue(
+      sdkToolchains
+    )
     await main.run()
     expect(failedSpy).not.toHaveBeenCalled()
     expect(installSpy).not.toHaveBeenCalled()
@@ -68,7 +74,7 @@ describe('setup-swift run validation', () => {
             const obj = objs[i]
             const sdkToolchain = sdkToolchains[i]
             obj.date = new Date(obj.date)
-            expect(obj).toStrictEqual(sdkToolchain)
+            expect(obj).toStrictEqual(sdkToolchain[0])
           }
           break
         }
@@ -79,12 +85,12 @@ describe('setup-swift run validation', () => {
   it('tests install', async () => {
     const installer = new LinuxToolchainInstaller(toolchain)
     const sdkInstallers = sdkToolchains.map(
-      toolchain => new SdkToolchainInstaller(toolchain)
+      ([toolchain, _requirement]) => new SdkToolchainInstaller(toolchain)
     )
     installSpy.mockResolvedValue({installer, sdkInstallers})
-    jest.spyOn(core, 'getBooleanInput').mockReturnValue(false)
-    jest.spyOn(core, 'getInput').mockReturnValue('latest')
-    jest.spyOn(installer, 'installedSwiftVersion').mockResolvedValue('5.8')
+    vi.spyOn(core, 'getBooleanInput').mockReturnValue(false)
+    vi.spyOn(core, 'getInput').mockReturnValue('latest')
+    vi.spyOn(installer, 'installedSwiftVersion').mockResolvedValue('5.8')
     await main.run()
     expect(failedSpy).not.toHaveBeenCalled()
     expect(toolchainSpy).not.toHaveBeenCalled()
@@ -108,7 +114,7 @@ describe('setup-swift run validation', () => {
             const obj = objs[i]
             const sdkToolchain = sdkToolchains[i]
             obj.date = new Date(obj.date)
-            expect(obj).toStrictEqual(sdkToolchain)
+            expect(obj).toStrictEqual(sdkToolchain[0])
           }
           break
         }
@@ -118,8 +124,8 @@ describe('setup-swift run validation', () => {
 
   it('tests failure', async () => {
     toolchainSpy.mockResolvedValue(undefined)
-    jest.spyOn(core, 'getBooleanInput').mockReturnValue(true)
-    jest.spyOn(core, 'getInput').mockReturnValue('latest')
+    vi.spyOn(core, 'getBooleanInput').mockReturnValue(true)
+    vi.spyOn(core, 'getInput').mockReturnValue('latest')
     await main.run()
     expect(failedSpy).toHaveBeenCalled()
     for (const spy of [installSpy, outputSpy]) {

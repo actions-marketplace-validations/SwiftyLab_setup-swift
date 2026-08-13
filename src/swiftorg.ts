@@ -1,10 +1,27 @@
 import * as path from 'path'
+import * as fs from 'fs/promises'
 import * as core from '@actions/core'
 import {exec} from '@actions/exec'
-import {MODULE_DIR, SWIFTORG_ORIGIN, SWIFTORG_METADATA} from './const'
+import {MODULE_DIR, SWIFTORG, SWIFTORG_ORIGIN, SWIFTORG_METADATA} from './const'
 import * as https from 'https'
 
-export const SWIFTORG = 'swiftorg'
+let swiftorgContractVersion: Promise<string | undefined> | undefined = undefined
+
+async function getSwiftorgContractVersion(): Promise<string | undefined> {
+  if (swiftorgContractVersion !== undefined) {
+    return await swiftorgContractVersion
+  }
+
+  swiftorgContractVersion = (async () => {
+    const data = await fs.readFile(
+      path.join(MODULE_DIR, 'package.json'),
+      'utf8'
+    )
+    const packageJson = JSON.parse(data)
+    return packageJson['swiftorg-contract-version']
+  })()
+  return swiftorgContractVersion
+}
 
 export class Swiftorg {
   constructor(readonly checkLatest: boolean | string) {
@@ -26,11 +43,23 @@ export class Swiftorg {
     }
   }
 
+  private static async commitFromMetadata(metadata: {
+    commit?: string
+    commits?: Record<string, string>
+  }): Promise<string | undefined> {
+    const version = await getSwiftorgContractVersion()
+    if (!version) {
+      return metadata.commit
+    }
+    return metadata.commits?.[version] ?? metadata.commit
+  }
+
   private async swiftorgMetadata(): Promise<{commit?: string}> {
     if (process.env.SETUPSWIFT_SWIFTORG_METADATA) {
       const metadata = JSON.parse(process.env.SETUPSWIFT_SWIFTORG_METADATA)
-      if (metadata.commit) {
-        return metadata
+      const commit = await Swiftorg.commitFromMetadata(metadata)
+      if (commit) {
+        return {commit}
       }
     }
     return new Promise((resolve, reject) => {
@@ -60,8 +89,11 @@ export class Swiftorg {
         res.on('end', () => {
           try {
             const parsedData = JSON.parse(rawData)
-            core.debug(`Recieved swift.org metadata: "${rawData}"`)
-            resolve(parsedData)
+            core.debug(`Received swift.org metadata: "${rawData}"`)
+            Swiftorg.commitFromMetadata(parsedData).then(
+              commit => resolve({commit}),
+              e => reject(e)
+            )
           } catch (e) {
             core.error(`Parsing swift.org metadata error: '${e}'`)
             reject(e)
@@ -86,8 +118,22 @@ export class Swiftorg {
     const origin = SWIFTORG_ORIGIN
     core.debug(`Adding submodule at "${swiftorg}" directory`)
     const cwd = {cwd: swiftorg}
+    // Only these subtrees are read by the action. A blobless partial clone
+    // (`--filter=blob:none`) combined with a cone-mode sparse checkout limits
+    // both the fetched objects and the populated working tree to these paths,
+    // avoiding the rest of the swift.org website (assets, images, blog, etc.).
     await exec('git', ['init', swiftorg])
-    await exec('git', ['fetch', origin, ref, '--depth=1', '--no-tags'], cwd)
+    await exec('git', ['remote', 'add', 'origin', origin], cwd)
+    await exec(
+      'git',
+      ['sparse-checkout', 'set', '_data', '_includes', 'install'],
+      cwd
+    )
+    await exec(
+      'git',
+      ['fetch', 'origin', ref, '--depth=1', '--no-tags', '--filter=blob:none'],
+      cwd
+    )
     await exec('git', ['checkout', 'FETCH_HEAD', '--detach'], cwd)
   }
 }

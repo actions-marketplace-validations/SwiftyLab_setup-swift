@@ -54,13 +54,13 @@ export class XcodePlatform extends Platform<XcodeToolchainInstaller> {
           platform: this.name,
           branch: release.tag.toLocaleLowerCase(),
           preventCaching: false
-        } as XcodeToolchainSnapshot
+        }
       })
   }
 
-  async install(data: XcodeToolchainSnapshot) {
+  async install(data: XcodeToolchainSnapshot, hasSDKs: boolean) {
     const installer = new XcodeToolchainInstaller(data)
-    await installer.install(this.arch)
+    await installer.install(this.arch, hasSDKs)
     return installer
   }
 }

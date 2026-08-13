@@ -1,11 +1,13 @@
 import * as path from 'path'
 import {promises as fs} from 'fs'
-// @ts-ignore
-import {__setContent as setContent} from 'https'
-import * as core from '@actions/core'
+import * as https from 'https'
+import {__setContent as setContent} from '../../../__mocks__/https'
 import {updateSdkModules} from '../../../src/installer/windows/modules'
+import {describe, expect, it, vi, beforeEach, afterEach} from 'vitest'
 
-jest.mock('https')
+vi.mock('https')
+
+vi.mock('fs', {spy: true})
 
 describe('windows modules SDK update', () => {
   const env = process.env
@@ -18,7 +20,7 @@ describe('windows modules SDK update', () => {
   })
 
   afterEach(() => {
-    jest.restoreAllMocks()
+    vi.restoreAllMocks()
     process.env = env
   })
 
@@ -33,9 +35,9 @@ describe('windows modules SDK update', () => {
       }
     })
 
-    jest.spyOn(fs, 'access').mockResolvedValue()
-    const mkdirSpy = jest.spyOn(fs, 'mkdir').mockResolvedValue('')
-    const writeFileSpy = jest.spyOn(fs, 'writeFile').mockResolvedValue()
+    vi.spyOn(fs, 'access').mockResolvedValue()
+    const mkdirSpy = vi.spyOn(fs, 'mkdir').mockResolvedValue('')
+    const writeFileSpy = vi.spyOn(fs, 'writeFile').mockResolvedValue()
 
     await updateSdkModules(mockSdkRoot)
 
@@ -96,16 +98,18 @@ describe('windows modules SDK update', () => {
       }
     })
 
-    jest.spyOn(fs, 'access').mockResolvedValue()
-    jest.spyOn(fs, 'mkdir').mockResolvedValue('')
+    vi.spyOn(fs, 'access').mockResolvedValue()
+    vi.spyOn(fs, 'mkdir').mockResolvedValue('')
 
     // Mock setTimeout to avoid actual delays
-    const setTimeoutSpy = jest
+    const setTimeoutSpy = vi
       .spyOn(global, 'setTimeout')
+      /* eslint-disable @typescript-eslint/no-explicit-any */
       .mockImplementation((callback: any) => {
         callback()
         return {} as any
       })
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     await expect(updateSdkModules(mockSdkRoot)).rejects.toThrow(
       "Request Failed Status Code: '404'"
@@ -118,9 +122,10 @@ describe('windows modules SDK update', () => {
     const moduleContent = 'module TestModule { header "test.h" }'
 
     // Mock https.get to fail twice then succeed
-    jest
-      .spyOn(require('https'), 'get')
+    vi.spyOn(https, 'get')
+      /* eslint-disable @typescript-eslint/no-explicit-any */
       .mockImplementation((url: any, callback: any) => {
+        /* eslint-enable @typescript-eslint/no-explicit-any */
         attemptCount++
 
         if (attemptCount <= 2) {
@@ -129,7 +134,9 @@ describe('windows modules SDK update', () => {
             statusCode: 500,
             url: url,
             headers: {'content-type': 'text/plain'},
+            /* eslint-disable @typescript-eslint/no-unsafe-function-type */
             on: (event: string, listener: Function) => {
+              /* eslint-enable @typescript-eslint/no-unsafe-function-type */
               if (event === 'data') {
                 listener('Internal Server Error')
               } else if (event === 'end') {
@@ -146,7 +153,9 @@ describe('windows modules SDK update', () => {
             statusCode: 200,
             url: url,
             headers: {'content-type': 'text/plain'},
+            /* eslint-disable @typescript-eslint/no-unsafe-function-type */
             on: (event: string, listener: Function) => {
+              /* eslint-enable @typescript-eslint/no-unsafe-function-type */
               if (event === 'data') {
                 listener(moduleContent)
               } else if (event === 'end') {
@@ -159,20 +168,22 @@ describe('windows modules SDK update', () => {
           callback(res)
         }
 
-        return {} as any
+        return {} as any // eslint-disable-line @typescript-eslint/no-explicit-any
       })
 
-    jest.spyOn(fs, 'access').mockResolvedValue()
-    jest.spyOn(fs, 'mkdir').mockResolvedValue('')
-    const writeFileSpy = jest.spyOn(fs, 'writeFile').mockResolvedValue()
+    vi.spyOn(fs, 'access').mockResolvedValue()
+    vi.spyOn(fs, 'mkdir').mockResolvedValue('')
+    const writeFileSpy = vi.spyOn(fs, 'writeFile').mockResolvedValue()
 
     // Mock setTimeout to avoid actual delays
-    const setTimeoutSpy = jest
+    const setTimeoutSpy = vi
       .spyOn(global, 'setTimeout')
+      /* eslint-disable @typescript-eslint/no-explicit-any */
       .mockImplementation((callback: any) => {
         callback()
         return {} as any
       })
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     await updateSdkModules(mockSdkRoot)
 
@@ -193,16 +204,18 @@ describe('windows modules SDK update', () => {
       }
     })
 
-    jest.spyOn(fs, 'access').mockResolvedValue()
-    jest.spyOn(fs, 'mkdir').mockResolvedValue('')
+    vi.spyOn(fs, 'access').mockResolvedValue()
+    vi.spyOn(fs, 'mkdir').mockResolvedValue('')
 
     // Mock setTimeout to avoid actual delays but still track calls
-    const setTimeoutSpy = jest
+    const setTimeoutSpy = vi
       .spyOn(global, 'setTimeout')
+      /* eslint-disable @typescript-eslint/no-explicit-any */
       .mockImplementation((callback: any) => {
         callback()
         return {} as any
       })
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     await expect(updateSdkModules(mockSdkRoot)).rejects.toThrow()
 
@@ -212,15 +225,17 @@ describe('windows modules SDK update', () => {
   it('throws error when Swift command not found in PATH', async () => {
     process.env.PATH = '/nonexistent/path'
 
-    jest.spyOn(fs, 'access').mockRejectedValue(new Error('ENOENT'))
+    vi.spyOn(fs, 'access').mockRejectedValue(new Error('ENOENT'))
 
     // Mock setTimeout to avoid actual delays but still track calls
-    const setTimeoutSpy = jest
+    const setTimeoutSpy = vi
       .spyOn(global, 'setTimeout')
+      /* eslint-disable @typescript-eslint/no-explicit-any */
       .mockImplementation((callback: any) => {
         callback()
         return {} as any
       })
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     await expect(updateSdkModules(mockSdkRoot)).rejects.toThrow(
       'Swift command not found in PATH'
@@ -239,14 +254,14 @@ describe('windows modules SDK update', () => {
     const windowsSwiftPath = path.resolve('mock', 'swift', 'bin', 'swift.exe')
     process.env.PATH = path.dirname(windowsSwiftPath)
 
-    jest.spyOn(fs, 'access').mockImplementation(async filePath => {
+    vi.spyOn(fs, 'access').mockImplementation(async filePath => {
       if (filePath === windowsSwiftPath) {
         return Promise.resolve()
       }
       throw new Error('ENOENT')
     })
-    jest.spyOn(fs, 'mkdir').mockResolvedValue('')
-    jest.spyOn(fs, 'writeFile').mockResolvedValue()
+    vi.spyOn(fs, 'mkdir').mockResolvedValue('')
+    vi.spyOn(fs, 'writeFile').mockResolvedValue()
 
     setContent({
       statusCode: 200,
@@ -264,7 +279,7 @@ describe('windows modules SDK update', () => {
     const unixSwiftPath = path.resolve('mock', 'swift', 'bin', 'swift')
     process.env.PATH = path.dirname(unixSwiftPath)
 
-    jest.spyOn(fs, 'access').mockImplementation(async filePath => {
+    vi.spyOn(fs, 'access').mockImplementation(async filePath => {
       if (filePath === unixSwiftPath) {
         return Promise.resolve()
       }
@@ -286,8 +301,8 @@ describe('windows modules SDK update', () => {
       headers: {'content-type': 'text/plain'}
     })
 
-    jest.spyOn(fs, 'access').mockResolvedValue()
-    jest.spyOn(fs, 'mkdir').mockRejectedValue(new Error('Permission denied'))
+    vi.spyOn(fs, 'access').mockResolvedValue()
+    vi.spyOn(fs, 'mkdir').mockRejectedValue(new Error('Permission denied'))
 
     await expect(updateSdkModules(mockSdkRoot)).rejects.toThrow(
       'Permission denied'
@@ -301,9 +316,9 @@ describe('windows modules SDK update', () => {
       headers: {'content-type': 'text/plain'}
     })
 
-    jest.spyOn(fs, 'access').mockResolvedValue()
-    jest.spyOn(fs, 'mkdir').mockResolvedValue('')
-    jest.spyOn(fs, 'writeFile').mockRejectedValue(new Error('Disk full'))
+    vi.spyOn(fs, 'access').mockResolvedValue()
+    vi.spyOn(fs, 'mkdir').mockResolvedValue('')
+    vi.spyOn(fs, 'writeFile').mockRejectedValue(new Error('Disk full'))
 
     await expect(updateSdkModules(mockSdkRoot)).rejects.toThrow('Disk full')
   })

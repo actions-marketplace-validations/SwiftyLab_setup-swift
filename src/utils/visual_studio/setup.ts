@@ -8,7 +8,7 @@ import {VisualStudio, VisualStudioRequirement, VisualStudioConfig} from './base'
 import {VSWhere} from './vswhere'
 
 declare module './base' {
-  // eslint-disable-next-line no-shadow, @typescript-eslint/no-namespace
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   export namespace VisualStudio {
     let shared: VisualStudio | undefined
     function setup(requirement: VisualStudioRequirement): Promise<VisualStudio>
@@ -71,7 +71,7 @@ VisualStudio.setup = async function (requirement: VisualStudioRequirement) {
     const vsConfig: VisualStudioConfig = JSON.parse(configContent)
     const installedComponents = new Set(vsConfig.components)
     comps = comps.filter(comp => !installedComponents.has(comp))
-    if (comps.length == 0) {
+    if (!comps.length) {
       core.debug('VS components already setup, skipping installation')
       this.shared = vs
       return vs

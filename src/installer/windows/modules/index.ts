@@ -77,7 +77,7 @@ export async function updateSdkModules(sdkRoot: string): Promise<void> {
     }
   }
 
-  let createdDirectories: string[] = []
+  const createdDirectories: string[] = []
   for (const [name, definition] of Object.entries(moduleDefinitions)) {
     try {
       const destinationDir = path.dirname(definition.destination)
@@ -116,7 +116,7 @@ export async function updateSdkModules(sdkRoot: string): Promise<void> {
               })
 
               res.on('end', () => {
-                core.debug(`Recieved ${name} module definition: "${rawData}"`)
+                core.debug(`Received ${name} module definition: "${rawData}"`)
                 resolve(rawData)
               })
             })

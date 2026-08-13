@@ -1,3 +1,38 @@
+## [1.14.0](https://github.com/SwiftyLab/setup-swift/compare/v1.13.0...v1.14.0) (2026-04-27)
+
+
+### 🚀 Features
+
+* added caching support for newer toolchains on Windows ([#489](https://github.com/SwiftyLab/setup-swift/issues/489)) ([cdb0a95](https://github.com/SwiftyLab/setup-swift/commit/cdb0a950f11751608093d838197d8ac1d3ea1cf4))
+
+
+### 🛠 Build System
+
+* updated action to use Node v24 ([#493](https://github.com/SwiftyLab/setup-swift/issues/493)) ([aa969d6](https://github.com/SwiftyLab/setup-swift/commit/aa969d66916d32e832829566ec14879767946922))
+
+## [1.13.0](https://github.com/SwiftyLab/setup-swift/compare/v1.12.0...v1.13.0) (2026-03-26)
+
+
+### 🚀 Features
+
+* added `update-sdk-modules` input for latest module definitions ([#435](https://github.com/SwiftyLab/setup-swift/issues/435)) ([05fec64](https://github.com/SwiftyLab/setup-swift/commit/05fec6483d9dd11e14c969da0992abd6d93d81c7))
+* added Android SDK setup support ([#472](https://github.com/SwiftyLab/setup-swift/issues/472)) ([2344a6c](https://github.com/SwiftyLab/setup-swift/commit/2344a6cb2e375f731223f0f5e0e8d7da9d66a2f6))
+
+
+### 🐎 Performance Improvements
+
+* improve Windows installation performance for Swift 5.9.1 and later ([#434](https://github.com/SwiftyLab/setup-swift/issues/434)) ([4826b64](https://github.com/SwiftyLab/setup-swift/commit/4826b64be821b81b136cab0f908ee9f5dd6f9554))
+
+
+### 🛠 Build System
+
+* updated to new wasm SDK format usage ([d916d5b](https://github.com/SwiftyLab/setup-swift/commit/d916d5bd3e7345d6d4547ff5ee545e12587ed195))
+
+
+### ✅ Tests
+
+* migrated to vitest ([#473](https://github.com/SwiftyLab/setup-swift/issues/473)) ([6d1219f](https://github.com/SwiftyLab/setup-swift/commit/6d1219fd97c825790b65e2c003ef786f2942af4b))
+
 ## [1.12.0](https://github.com/SwiftyLab/setup-swift/compare/v1.11.0...v1.12.0) (2025-09-17)
 
 

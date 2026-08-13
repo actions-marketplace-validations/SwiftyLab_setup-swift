@@ -9,6 +9,7 @@ import * as toolCache from '@actions/tool-cache'
 import {coerce as parseSemVer} from 'semver'
 import {SWIFT_BRANCH_REGEX} from '../version'
 import {ToolchainSnapshot} from '../snapshot'
+import {INPUT_CACHE_SNAPSHOT} from '../const'
 
 export type SnapshotForInstaller<Installer> =
   Installer extends ToolchainInstaller<infer Snapshot extends ToolchainSnapshot>
@@ -17,6 +18,16 @@ export type SnapshotForInstaller<Installer> =
 
 export abstract class ToolchainInstaller<Snapshot extends ToolchainSnapshot> {
   constructor(readonly data: Snapshot) {}
+
+  /**
+   * Whether `unpack` produces a disposable temporary directory that can be
+   * moved into the action cache restore path instead of copied. Installers that
+   * unpack into a persistent system location (e.g. Windows) must override this
+   * to `false` so the installed toolchain is left in place.
+   */
+  protected get unpackIsRelocatable() {
+    return true
+  }
 
   protected get version() {
     const match = SWIFT_BRANCH_REGEX.exec(this.data.dir)
@@ -43,11 +54,12 @@ export abstract class ToolchainInstaller<Snapshot extends ToolchainSnapshot> {
     }
   }
 
-  async install(arch: string) {
+  async install(arch: string, _hasSDKs: boolean) {
     const toolCacheKey = `${this.data.dir}-${this.data.platform}`
     const actionCacheKey = arch ? `${toolCacheKey}-${arch}` : toolCacheKey
     const version = this.version?.raw
     let tool: string | undefined
+    let unpacked: string | undefined
     let toolCacheHit = false
     let actionCacheHit = false
     if (version) {
@@ -70,6 +82,7 @@ export abstract class ToolchainInstaller<Snapshot extends ToolchainSnapshot> {
         const resource = await this.download(arch)
         const installation = await this.unpack(resource, arch)
         core.debug(`Downloaded and installed snapshot at "${installation}"`)
+        unpacked = installation
         tool = installation
       }
     } else {
@@ -90,12 +103,26 @@ export abstract class ToolchainInstaller<Snapshot extends ToolchainSnapshot> {
     }
     if (
       tool &&
-      core.getBooleanInput('cache-snapshot') &&
+      core.getBooleanInput(INPUT_CACHE_SNAPSHOT) &&
       !actionCacheHit &&
       !toolCacheHit &&
       !this.data.preventCaching
     ) {
-      await fs.cp(tool, restore, {recursive: true})
+      await fs.mkdir(path.dirname(restore), {recursive: true})
+      if (unpacked && this.unpackIsRelocatable) {
+        // The toolchain has already been copied into the tool cache above, so
+        // the freshly unpacked copy is redundant. Move it to the action cache
+        // restore path instead of making a second full-size copy.
+        await fs.rm(restore, {recursive: true, force: true})
+        try {
+          await fs.rename(unpacked, restore)
+        } catch (error) {
+          core.debug(`Falling back to copy after rename failed with "${error}"`)
+          await fs.cp(unpacked, restore, {recursive: true})
+        }
+      } else {
+        await fs.cp(tool, restore, {recursive: true})
+      }
       await cache.saveCache([restore], actionCacheKey)
       core.debug(`Saved to cache with key "${actionCacheKey}"`)
     }

@@ -51,6 +51,7 @@ inputs:
   prefer-oss-toolchain:
     description: >-
       Whether to prefer installing Swift open source toolchain over using Xcode integrated toolchain.
+      This is always assumed `true` if `sdks` input is specified.
       i.e. Enable this option for installing static SDK: https://www.swift.org/documentation/articles/static-linux-getting-started.html
     required: false
     default: 'false'
@@ -70,9 +71,16 @@ inputs:
     description: >-
       Semi-colon separated list of Swift SDKs to install along with the main toolchain.
       Available SDKs are based on platforms available for the specified version.
-      Examples: "static-linux", "static-linux;wasm", "static-linux:0.0.1;wasm".
+      Examples: "static-linux", "static-linux;wasm", "static-linux;wasm;android".
     required: false
     default: ''
+  skip-linux-install-dependencies:
+    description: >-
+      Whether to skip installing the system dependencies required by the Swift toolchain (Linux only).
+      Disabled by default, can be enabled if the dependencies are already provisioned
+      on the runner or managed externally.
+    required: false
+    default: 'false'
 outputs:
   swift-version:
     description: The actual Swift version that was configured.
@@ -81,5 +89,5 @@ outputs:
   sdks:
     description: JSON formatted SDK snapshots metadata that were configured.
 runs:
-  using: node20
+  using: node24
   main: dist/index.js

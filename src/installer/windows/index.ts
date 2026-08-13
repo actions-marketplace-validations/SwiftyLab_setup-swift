@@ -9,8 +9,19 @@ import {VisualStudio, VISUAL_STUDIO_WINSDK_COMPONENT_REGEX} from '../../utils'
 import {program86} from '../../utils/windows'
 import {Installation, CustomInstallation} from './installation'
 import {updateSdkModules} from './modules'
+import {
+  INPUT_VISUAL_STUDIO_COMPONENTS,
+  INPUT_PREFER_VISUAL_STUDIO_LINKER,
+  INPUT_UPDATE_SDK_MODULES
+} from '../../const'
 
 export class WindowsToolchainInstaller extends VerifyingToolchainInstaller<WindowsToolchainSnapshot> {
+  // `unpack` installs the toolchain to a persistent system location, so it must
+  // not be moved out of place when populating the action cache.
+  protected get unpackIsRelocatable() {
+    return false
+  }
+
   private async winsdk() {
     const win11Semver = '10.0.22000'
     const recommended = semver.gte(this.version ?? '6.2.0', '6.2.0')
@@ -18,9 +29,9 @@ export class WindowsToolchainInstaller extends VerifyingToolchainInstaller<Windo
       : '10.0.17763'
     const current = os.release()
     let version = semver.gte(current, recommended) ? current : recommended
-    const insatlled = await this.insatlledSdks()
-    if (insatlled.length && !insatlled.includes(version)) {
-      version = insatlled[0]
+    const installed = await this.installedSdks()
+    if (installed.length && !installed.includes(version)) {
+      version = installed[0]
     }
 
     const major = semver.lt(version, win11Semver) ? semver.major(version) : 11
@@ -28,7 +39,7 @@ export class WindowsToolchainInstaller extends VerifyingToolchainInstaller<Windo
     return `Microsoft.VisualStudio.Component.Windows${major}SDK.${minor}`
   }
 
-  private async insatlledSdks() {
+  private async installedSdks() {
     const sdksPath = path.join(program86(), 'Windows Kits', '10', 'Include')
     try {
       const dirs = await fs.readdir(sdksPath, {withFileTypes: true})
@@ -47,7 +58,7 @@ export class WindowsToolchainInstaller extends VerifyingToolchainInstaller<Windo
   }
 
   private async vsRequirement(arch: string) {
-    const componentsStr = core.getInput('visual-studio-components')
+    const componentsStr = core.getInput(INPUT_VISUAL_STUDIO_COMPONENTS)
     const providedComponents = componentsStr ? componentsStr.split(';') : []
     const winsdkComponent = providedComponents.find(component => {
       return (
@@ -82,9 +93,12 @@ export class WindowsToolchainInstaller extends VerifyingToolchainInstaller<Windo
   }
 
   protected async download(arch: string) {
-    let vsSetupAction = new Promise(resolve => resolve({}))
-    const vsComponents = core.getInput('visual-studio-components')
-    if (vsComponents.length) {
+    let vsSetupAction = Promise.resolve({})
+    const vsComponents = core.getInput(INPUT_VISUAL_STUDIO_COMPONENTS)
+    if (
+      vsComponents.length ||
+      core.getBooleanInput(INPUT_PREFER_VISUAL_STUDIO_LINKER)
+    ) {
       core.debug(
         `Using VS requirement ${JSON.stringify(this.vsRequirement(arch))}`
       )
@@ -104,16 +118,18 @@ export class WindowsToolchainInstaller extends VerifyingToolchainInstaller<Windo
 
   protected async unpack(exe: string, arch: string) {
     core.debug(`Unpacking for architecture "${arch}"`)
-    const installation = await Installation.install(exe)
+    const version = this.version?.version ?? ''
+    const installation = await Installation.install(exe, version)
     return installation instanceof Installation ? installation.location : ''
   }
 
   protected async add(installLocation: string, arch: string) {
-    const installation = await Installation.get(installLocation)
+    const swiftVersion = this.version?.version ?? ''
+    const installation = await Installation.get(swiftVersion, installLocation)
     const sdkrootKey = 'SDKROOT'
     let sdkroot: string | undefined
     if (installation instanceof Installation) {
-      sdkroot = installation?.sdkroot ?? core
+      sdkroot = installation?.sdkroot
       core.exportVariable(sdkrootKey, sdkroot)
       if (installation.devdir) {
         core.exportVariable('DEVELOPER_DIR', installation.devdir)
@@ -142,14 +158,16 @@ export class WindowsToolchainInstaller extends VerifyingToolchainInstaller<Windo
     }
 
     if (!sdkroot) {
-      core.warning(`Failed VS enviroment after installation ${installLocation}`)
+      core.warning(
+        `SDKROOT was not set after installation at ${installLocation}; Visual Studio/Swift environment setup cannot continue and the installation may be unusable.`
+      )
       return
     }
 
     const version = await this.installedSwiftVersion()
     if (
       semver.lte(semver.coerce(version) ?? version, '5.9.0') ||
-      core.getBooleanInput('prefer-visual-studio-linker')
+      core.getBooleanInput(INPUT_PREFER_VISUAL_STUDIO_LINKER)
     ) {
       const visualStudio = await VisualStudio.setup(
         await this.vsRequirement(arch)
@@ -157,7 +175,7 @@ export class WindowsToolchainInstaller extends VerifyingToolchainInstaller<Windo
       await visualStudio.update(sdkroot)
     }
 
-    if (core.getBooleanInput('update-sdk-modules')) {
+    if (core.getBooleanInput(INPUT_UPDATE_SDK_MODULES)) {
       await updateSdkModules(sdkroot)
     }
 

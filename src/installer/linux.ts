@@ -5,12 +5,23 @@ import * as toolCache from '@actions/tool-cache'
 import {VerifyingToolchainInstaller} from './verify'
 import {LinuxToolchainSnapshot} from '../snapshot'
 import {PackageManager} from './package_manager'
-import {MODULE_DIR} from '../const'
+import {INPUT_SKIP_INSTALL_DEPENDENCIES, MODULE_DIR, SWIFTORG} from '../const'
 
 export class LinuxToolchainInstaller extends VerifyingToolchainInstaller<LinuxToolchainSnapshot> {
+  private dependenciesInstall?: Promise<void>
+
   private async installDependencies() {
+    this.dependenciesInstall ??= this.doInstallDependencies()
+    return this.dependenciesInstall
+  }
+
+  private async doInstallDependencies() {
+    if (core.getBooleanInput(INPUT_SKIP_INSTALL_DEPENDENCIES)) {
+      core.debug('Skipping dependencies install as disabled by input')
+      return
+    }
     const platform = this.data.platform
-    const linuxRequirements = 'swiftorg/_includes/linux'
+    const linuxRequirements = path.join(SWIFTORG, '_includes', 'linux')
     const file = path.join(MODULE_DIR, linuxRequirements, `${platform}.html`)
     try {
       await fs.access(file)
@@ -60,6 +71,11 @@ export class LinuxToolchainInstaller extends VerifyingToolchainInstaller<LinuxTo
   }
 
   protected async add(toolchain: string) {
+    // Dependencies must be installed on every install path, including cache
+    // hits where `download` (and its parallel dependency install) is skipped.
+    // Memoization in `installDependencies` prevents a redundant install when
+    // the toolchain was freshly downloaded.
+    await this.installDependencies()
     core.debug(`Adding toolchain "${toolchain}" to path`)
     const swiftPath = path.join(toolchain, 'usr', 'bin')
     core.addPath(swiftPath)
