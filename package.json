@@ -1,6 +1,6 @@
 {
   "name": "setup-swift",
-  "version": "1.14.0",
+  "version": "1.14.2",
   "private": true,
   "description": "Setup Swift environment.",
   "keywords": [
@@ -30,6 +30,7 @@
     "lint": "depcheck --ignores @vitest/coverage-istanbul && eslint && prettier --check .",
     "package": "esbuild lib/main.js --bundle --platform=node --target=node24 --format=esm --banner:js=\"import{createRequire}from'module';import{fileURLToPath}from'url';import{dirname}from'path';const require=createRequire(import.meta.url);const __filename=fileURLToPath(import.meta.url);const __dirname=dirname(__filename);\" --outfile=dist/index.js",
     "prepare": "node --import jiti/register -e \"import('./.github/utils/update_metadata.ts').then(m => (m.default?.fetch ?? m.fetch)())\" && npm run build",
+    "source-zip": "mkdir -p build && rm -f build/setup-swift-source.zip && tmp=$(mktemp -d) && git init -q --bare \"$tmp\" && git -c core.quotePath=false --git-dir=\"$tmp\" --work-tree=. ls-files -o --exclude-standard | grep -vxF build/setup-swift-source.zip | zip -q -X -@ build/setup-swift-source.zip; s=$?; rm -rf \"$tmp\"; [ $s -eq 0 ] && echo \"Wrote build/setup-swift-source.zip ($(du -h build/setup-swift-source.zip | cut -f1))\"; exit $s",
     "test": "vitest run --coverage"
   },
   "dependencies": {
@@ -51,25 +52,25 @@
     "@stylistic/eslint-plugin": "^5.10.0",
     "@types/getos": "^3.0.4",
     "@types/js-yaml": "^4.0.9",
-    "@types/lodash": "^4.17.24",
-    "@types/node": "^26.1.0",
+    "@types/lodash": "^4.17.25",
+    "@types/node": "^26.6.3",
     "@types/plist": "^3.0.5",
     "@types/semver": "^7.7.1",
     "@typescript-eslint/eslint-plugin": "^8.65.0",
-    "@typescript-eslint/parser": "^8.63.0",
+    "@typescript-eslint/parser": "^8.70.1",
     "@vitest/coverage-istanbul": "^4.1.9",
     "@vitest/eslint-plugin": "^1.6.20",
-    "conventional-changelog-conventionalcommits": "^9.3.1",
+    "conventional-changelog-conventionalcommits": "^7.0.0",
     "depcheck": "^1.4.7",
     "esbuild": "0.28.1",
-    "eslint": "^10.8.0",
-    "globals": "^17.8.0",
+    "eslint": "^10.11.0",
+    "globals": "^17.11.0",
     "jiti": "^2.7.0",
     "nock": "^14.0.16",
     "prettier": "^3.9.4",
     "sort-package-json": "^4.0.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=20.0.0",
